@@ -1,0 +1,35 @@
+\section{Introduction}
+
+The aim of this project is providing an optimized hardware implementation for the
+\textbf{AES Cryptosystem} targeting an FPGA device.
+
+We design the hardware accelerator using \textbf{System Verilog} as an HDL. We use
+\textbf{Vivado 2018.2} for the development, test and implementation of our project.
+The target platform is a \textit{Xilinx Artix-7} FPGA (part no. XC7A100TCSG324C-1)
+mounted on a \textit{Digilent Nexys4 DDR rev. C} board.
+
+Since performance is the main driver of the project, we adopt an alternate implementation
+of the AES cryptosystem based on \textit{Tboxes}. We squashed the trasformations
+included in the original round structure, \texttt{SubBytes}, \texttt{ShiftRows},
+\texttt{MixColumns} and \texttt{AddRoundKey} in a simpler one by mapping the AES
+\textit{state bytes} through Tboxes. Tboxes are lookup tables that store precomputed
+values for the \texttt{SubBytes} and \texttt{MixColumns} operations combined together.
+Through fast Tbox \textit{lookups} and simple \textit{XOR} operations, it is possible
+to complete a whole round of the cipher in a single clock cycle.
+
+Another design criterion is providing support for all of the three different AES key sizes,
+namely \textit{AES-128}, \textit{AES-192} and \textit{AES-256}.
+Since the purpose of the project is producing an optimized AES core, we implement only
+the \textit{ECB -- Electronic Codebook} mode, which encrypts
+and decrypts each AES block separately.
+
+The design is connected to the external world using a \textit{UART} interface.
+The main features of the project are:
+\begin{enumerate}
+  \item support for \textit{AES-128}, \textit{AES-192}, \textit{AES-256} in \textit{ECB} mode
+  \item Tbox-based implementation, completing a whole round in 1 clock cycle and
+a whole encyption/decryption in 15 clock cycles, irrespectively of the key size
+  \item unified encryption/decryption datapath, making the provided core easy to
+replicate in the same design
+  \item testing of the implementation on the final platform
+\end{enumerate}
