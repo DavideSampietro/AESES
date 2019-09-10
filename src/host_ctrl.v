@@ -16,10 +16,8 @@ module host_ctrl(
 					// interface aes core
 					host_aes_key_o,
 					host_aes_blk_o,
-					host_aes_key_mode_o,
 					host_aes_enable_key_schedule_o,
 					host_aes_enable_op_o,
-					host_aes_enc_decneg_o,
 					aes_host_result_i,
 					aes_host_result_valid_i,
 					aes_host_ready_i,
@@ -67,8 +65,6 @@ input 					wb_ack_uart_i;
 ////////////////////////////////////////
 output      [0:AES_KW-1]    host_aes_key_o;
 output      [0:AES_DW-1]    host_aes_blk_o;
-output  reg [1:0]           host_aes_key_mode_o;
-output  reg                 host_aes_enc_decneg_o;
 output  reg                 host_aes_enable_key_schedule_o;
 output  reg                 host_aes_enable_op_o;
 
@@ -102,9 +98,6 @@ localparam [4:0]	CONFIGURE					= 5'd0,
 					SET_UART_DIV_REG			= 5'd2,
 					END_CONFIGURE				= 5'd3,
 
-					GET_AESES_CONTROL_BYTE		= 5'd4,
-					PARSE_AESES_CONTROL_BYTE	= 5'd5,
-
 					CHECK_UART_RXFIFO			= 5'd6,
 					READ_BYTE_UART         		= 5'd7,
 					
@@ -122,9 +115,7 @@ localparam [4:0]	CONFIGURE					= 5'd0,
 					TRIGGER_DELAY				= 5'd24,	// wait before set the trigger
 // delay to correctly align trigger before and after computation
 					TRIGGER_DELAY_PRE_COMP		= 5'd25,	// set the trigger SOMETIME before starting the actual computation
-					TRIGGER_DELAY_POST_COMP		= 5'd26,	// clear the trigger SOMETIME after the end of the actual computation
-// eventually reuse data
-					PREPARE_REUSE_DATA			= 5'd27;	// decide if reuse the enc_r as new plain or ask for new key/plain pair in input
+					TRIGGER_DELAY_POST_COMP		= 5'd26;	// clear the trigger SOMETIME after the end of the actual computation
 
 // count the 8bit words to receive before moving to the next state
 
@@ -144,11 +135,6 @@ reg [TRIGGER_BIT_W-1:0] cnt_aes_delay, cnt_aes_delay_next;
 reg cnt_aes_delay_inc;
 reg cnt_aes_delay_rst;
 reg cnt_aes_delay_we;
-
-reg [NUM_CNT_REUSE_BIT-1:0] reuse_cnt,	reuse_cnt_next; // how many times the enc is reused as new plain before asking for a new key/plain pair
-reg reuse_cnt_we;
-reg reuse_cnt_rst;
-reg reuse_cnt_inc;
 
 //////////////////////////////////////////////////
 // registers to store key and plain to feed  	//
@@ -184,8 +170,6 @@ reg [3:0]			wb_sel_uart_o_next;
 reg 				wb_we_uart_o_next;
 
 // update signals for the aes_core iface
-reg [1:0]   host_aes_key_mode_next;
-reg         host_aes_enc_decneg_next;
 reg         host_aes_enable_key_schedule_next;
 reg         host_aes_enable_op_next;
 
@@ -232,8 +216,9 @@ assign host_aes_key_o 	= {
 						key_r[3],		key_r[2],		key_r[1], 		key_r[0] };
 
 assign recv_byte_led_o[4:0] = ss; // set ss to led status
-assign recv_byte_led_o[5] = host_aes_enc_decneg_o;
-assign recv_byte_led_o[7:6] = host_aes_key_mode_o;
+assign recv_byte_led_o[5] = aes_host_ready_i;
+assign recv_byte_led_o[6] = host_aes_enable_key_schedule_o | host_aes_enable_op_o;
+assign recv_byte_led_o[7] = aes_host_result_valid_i;
 
 //////////////////////////////////////////////////////////
 // SEQUENTIAL LOGIC										//
@@ -245,11 +230,10 @@ begin:seq_host
 	if(wb_rst)
 	begin
 		ss 				<=	CONFIGURE;
-		ss_after_read   <=  GET_AESES_CONTROL_BYTE;
+		ss_after_read   <=  AES_WAIT_READY_INIT;
 		trigger_o 		<=	0;
 		trigger_cnt		<=	0;
 		cnt_aes_delay	<=	0;
-		reuse_cnt		<=	0;
 		// wb signals to uart
 		wb_adr_uart_o	<=	{UART_AW{1'b0}};
 		wb_cyc_uart_o	<=	0;
@@ -269,8 +253,6 @@ begin:seq_host
 		enc_r			<=	0;
 
 		// AES_CORE signals
-		host_aes_key_mode_o             <= `KEY_128;
-        host_aes_enc_decneg_o           <= 1'b1;
         host_aes_enable_key_schedule_o  <= 1'b0;
         host_aes_enable_op_o            <= 1'b0;
 	end
@@ -284,8 +266,6 @@ begin:seq_host
 
 		if(cnt_aes_delay_we)
 			cnt_aes_delay	<=	cnt_aes_delay_next;
-		if(reuse_cnt_we)
-			reuse_cnt		<=	reuse_cnt_next;
 
 	//	uart signals
 		wb_adr_uart_o	<= wb_adr_uart_o_next;
@@ -305,22 +285,11 @@ begin:seq_host
 
 		if(plain_r_we_next)
 		begin
-			if(plainFlush_r_we_next) //1 if reuse enc as plain
-			begin
-				for(i=0; i<NUM_BYTE_BLK; i=i+1)
-				begin
-					plain_r[NUM_BYTE_BLK-1-i] <= enc_r[(UART_DW * (i))+:8];
-					//$display("@%0t: Host0 - enc -> plain enc_r [%d +:8] = %h",$time,(UART_DW * (i)),enc_r[ (UART_DW * (i)) +: 8]);
-				end
-			end
-			else //load single byte
-				plain_r[cnt_recvbyte]	<=	data_next;
+			plain_r[cnt_recvbyte]	<=	data_next;
 		end
 		enc_r		<= enc_r_next;
 
 	//keep the AES_CORE signals
-		host_aes_key_mode_o             <= host_aes_key_mode_next;
-        host_aes_enc_decneg_o           <= host_aes_enc_decneg_next;
         host_aes_enable_key_schedule_o  <= host_aes_enable_key_schedule_next;
         host_aes_enable_op_o            <= host_aes_enable_op_next;
 	
@@ -354,8 +323,6 @@ begin
 	enc_r_next			= enc_r;
 
 	//keep the aes_core signals
-	host_aes_key_mode_next = host_aes_key_mode_o;
-    host_aes_enc_decneg_next = host_aes_enc_decneg_o;
     host_aes_enable_key_schedule_next = 1'b0;
     host_aes_enable_op_next = 1'b0;
 
@@ -364,9 +331,6 @@ begin
 
 	cnt_recvbyte_dec = 0;
 	cnt_recvbyte_rst = 0;
-
-	reuse_cnt_inc = 0;
-	reuse_cnt_rst = 0;
 
 	cnt_aes_delay_inc=0;
 	cnt_aes_delay_rst=0;
@@ -415,7 +379,10 @@ begin
 				set_uart_op(WRITE_OP,`UART_REG_LC,4'b1,8'b00000011);
 				if(wb_ack_uart_i)
 				begin
-					ss_next = GET_AESES_CONTROL_BYTE;
+					ss_next = CHECK_UART_RXFIFO;
+					ss_after_read_next = AES_WAIT_READY_INIT;
+					cnt_recvbyte_rst = 1;
+					cnt_recvbyte_rst_value = 31;
 
 					wb_cyc_uart_o_next	= 0;
 					wb_stb_uart_o_next	= 0;
@@ -427,44 +394,6 @@ begin
 			
 // GET_AESES_CONTROL_BYTE -- this is to get the control byte that is needed to drive the operation of the AESES core
 // It basically mimicks the behaviour of the RESET_OP2 and RESET_OP1 states (in the original files...)
-        GET_AESES_CONTROL_BYTE:
-            begin
-                    ss_next = CHECK_UART_RXFIFO;
-                    cnt_recvbyte_rst = 1'b1;
-                    cnt_recvbyte_rst_value = 0;
-                    ss_after_read_next = PARSE_AESES_CONTROL_BYTE;
-            end
-        PARSE_AESES_CONTROL_BYTE:
-            begin
-                    // Now I follow the conventions I actually established for the control byte!!!
-                    // the control byte is anyways saved into data!!!
-                    ss_next = CHECK_UART_RXFIFO;
-                    
-                    // TODO: add some logic to drive my AES implementation control signals!!!
-                    
-                    if(data[`AESES_RESET_BIT] == 1'b1) // this means a RESET, i.e. new key schedule!!!
-                    begin
-                        cnt_recvbyte_rst = 1'b1;
-                        cnt_recvbyte_rst_value = NUM_BYTE_KEY-1;
-                        ss_after_read_next = AES_WAIT_READY_INIT; // start a new keyschedule after reading key bytes!
-                        // only when a new keyschedule comes in, the key mode is considered valid!!!
-                        if(data[`AESES_KEY_256_BIT] == 1'b1)
-                            // don't allow `KEY_INVALID because the aeses_core would be incompatible with the host_ctrl
-                            host_aes_key_mode_next = `KEY_256;
-                        else
-                            host_aes_key_mode_next = data[`AESES_KEY_FIELD];
-                    end
-                    else if(data[`AESES_EN_BIT] == 1'b1)
-                    begin
-                        cnt_recvbyte_rst = 1'b1;
-                        cnt_recvbyte_rst_value = NUM_BYTE_BLK-1;
-                        ss_after_read_next = AES_WAIT_READY_COMP; // start a new operation after reading block bytes!
-                        // only when a new command is issued it's possible to swap between encryption and decryption!
-                        host_aes_enc_decneg_next = data[`AESES_ENC_DEC];
-                    end
-                    else
-                        ss_next = GET_AESES_CONTROL_BYTE;
-            end
         CHECK_UART_RXFIFO:
             begin
                 set_uart_op(READ_OP,`UART_REG_LS,1,0);
@@ -488,6 +417,7 @@ begin
                         // if I ended reading, then I go in the after-read state!
                         ss_next = ss_after_read;
                         cnt_recvbyte_rst = 1;
+                        cnt_recvbyte_rst_value = 15;
                     end
                     else
                     begin
@@ -531,8 +461,9 @@ begin
 				begin
 					if(cnt_recvbyte==0)
 					begin
-						ss_next = GET_AESES_CONTROL_BYTE;
-						//cnt_recvbyte_rst = 1;
+						ss_next = CHECK_UART_RXFIFO;
+						cnt_recvbyte_rst = 1;
+						cnt_recvbyte_rst_value = 15;
 					end
 					else
 					begin
@@ -577,7 +508,8 @@ begin
 			begin
 				if(aes_host_ready_i)
 				begin
-					ss_next = GET_AESES_CONTROL_BYTE;
+					ss_next = CHECK_UART_RXFIFO;
+					ss_after_read_next = AES_WAIT_READY_COMP;
 					$strobe("@%0t: Host0 - key scheduled DONE, waiting for blocks to encrypt/decrypt",$time);
 				end
 			end
@@ -606,7 +538,6 @@ begin
 				begin
 					cnt_aes_delay_inc=1'b1;
 				end
-
 			end
 		AES_START_COMPUTATION:	// run the encryption: set host_aes_next_o = 1 and wait for result
 			begin
@@ -642,7 +573,6 @@ begin
 				begin
 					cnt_aes_delay_inc = 1'b1;
 				end
-
 			end
 
 // OSCILLOSCOPE Delay: before resetting the trigger
@@ -651,55 +581,14 @@ begin
 				if(trigger_cnt == TRIGGER_MAX)
 				begin
 					trigger_cnt_rst = 1'b1;
-					ss_next = PREPARE_REUSE_DATA; // restart the computation
+					ss_next = CHECK_UART_TXFIFO; // restart the computation
 				end
 				else
 				begin
 					trigger_cnt_inc=1'b1;
 				end
-
 			end
-
-// Eventually use the aes_core output as new plain in input
-		PREPARE_REUSE_DATA:
-		begin
-			cnt_recvbyte_rst = 1;
-			//if(reuse_cnt == NUM_CNT_REUSE_TIMES )
-			if(reuse_cnt != NUM_CNT_REUSE_TIMES )
-			begin
-				reuse_cnt_inc = 1'b1;
-
-				plainFlush_r_we_next	= 1'b1;
-				ss_next = AES_WAIT_READY_COMP;
-			end
-			else
-			begin
-				ss_next = CHECK_UART_TXFIFO;
-				reuse_cnt_rst = 1'b1;
-				cnt_recvbyte_rst = 1'b1;
-                cnt_recvbyte_rst_value = NUM_BYTE_BLK-1;
-			end
-		end
 	endcase
-end
-
-
-// counter for reuse enc_(i) as plain_(i+1)
-always@(*)
-begin
-		reuse_cnt_next	= 16'b0;
-		reuse_cnt_we	= 1'b0;
-
-		if(reuse_cnt_inc)
-		begin
-			reuse_cnt_next	= reuse_cnt + 1'b1;
-			reuse_cnt_we 	=	1'b1;
-		end
-		else if(reuse_cnt_rst)
-		begin
-			reuse_cnt_next	= 16'b0;
-			reuse_cnt_we 	= 1'b1;
-		end
 end
 
 

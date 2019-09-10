@@ -11,15 +11,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="0fs"></ZoomStartTime>
-      <ZoomEndTime time="39100001fs"></ZoomEndTime>
-      <Cursor1Time time="6000fs"></Cursor1Time>
+      <ZoomStartTime time="6183574956070fs"></ZoomStartTime>
+      <ZoomEndTime time="6183695008787fs"></ZoomEndTime>
+      <Cursor1Time time="6183675000000fs"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
-      <NameColumnWidth column_width="99"></NameColumnWidth>
-      <ValueColumnWidth column_width="66"></ValueColumnWidth>
+      <NameColumnWidth column_width="219"></NameColumnWidth>
+      <ValueColumnWidth column_width="114"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="8" />
+   <WVObjectSize size="6" />
    <wvobject type="logic" fp_name="/fpga_top_tb/clk">
       <obj_property name="ElementShortName">clk</obj_property>
       <obj_property name="ObjectShortName">clk</obj_property>
@@ -28,28 +28,20 @@
       <obj_property name="ElementShortName">rst</obj_property>
       <obj_property name="ObjectShortName">rst</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/fpga_top_tb/start_value_bytes">
-      <obj_property name="ElementShortName">start_value_bytes[0:15][7:0]</obj_property>
-      <obj_property name="ObjectShortName">start_value_bytes[0:15][7:0]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/fpga_top_tb/final_reference">
-      <obj_property name="ElementShortName">final_reference[0:127]</obj_property>
-      <obj_property name="ObjectShortName">final_reference[0:127]</obj_property>
-   </wvobject>
-   <wvobject type="array" fp_name="/fpga_top_tb/result">
-      <obj_property name="ElementShortName">result[0:15][7:0]</obj_property>
-      <obj_property name="ObjectShortName">result[0:15][7:0]</obj_property>
+   <wvobject type="array" fp_name="/fpga_top_tb/top0/aes0/key_store/internal_regs">
+      <obj_property name="ElementShortName">internal_regs[0:14][0:127]</obj_property>
+      <obj_property name="ObjectShortName">internal_regs[0:14][0:127]</obj_property>
    </wvobject>
    <wvobject type="array" fp_name="/fpga_top_tb/top0/aes0/state">
       <obj_property name="ElementShortName">state[1:0]</obj_property>
       <obj_property name="ObjectShortName">state[1:0]</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/fpga_top_tb/top0/aes0/ready_o">
-      <obj_property name="ElementShortName">ready_o</obj_property>
-      <obj_property name="ObjectShortName">ready_o</obj_property>
+   <wvobject type="logic" fp_name="/fpga_top_tb/top0/aes0/sched0/state">
+      <obj_property name="ElementShortName">state</obj_property>
+      <obj_property name="ObjectShortName">state</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/fpga_top_tb/top0/host0/ss">
-      <obj_property name="ElementShortName">ss[4:0]</obj_property>
-      <obj_property name="ObjectShortName">ss[4:0]</obj_property>
+   <wvobject type="logic" fp_name="/fpga_top_tb/top0/aes0/sched0/valid_key_out">
+      <obj_property name="ElementShortName">valid_key_out</obj_property>
+      <obj_property name="ObjectShortName">valid_key_out</obj_property>
    </wvobject>
 </wave_config>

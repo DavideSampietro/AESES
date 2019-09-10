@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
 
     prettyprint((uint8_t*)&i_tbox[i], 4, i_t_buffer);
     prettyprint(&i_sbox[i], 1, i_s_buffer);
-    printf("assign sbox_tbox[%i] = 80'h%s%s%s%s;\n", i, s_buffer, t_buffer, i_s_buffer, i_t_buffer);
+    printf("assign sbox_tbox[%i] = 40'h%s%s;\n", i, s_buffer, t_buffer);
   }
 }
 

@@ -63,13 +63,11 @@ wire				aes_host_result_valid;
 wire				aes_host_ready;
 
 wire                host_aes_schedule;
-wire [1:0]          host_aes_key_mode;
 wire                host_aes_enable;
-wire                host_aes_enc_decneg;
 
 /*	AES core. Config: 128 plain 128 key, ECB */
 
-	aeses_core aes0(
+	aeses_lite aes0(
 	       // clk and rst
 	       .clk(clk),
 	       .rst(~RST_PIN),
@@ -82,9 +80,9 @@ wire                host_aes_enc_decneg;
 	       .ready_o(aes_host_ready),
 	       // control inputs
 	       .enable_key_schedule_i(host_aes_schedule),
-	       .enable_op_i(host_aes_enable),
-	       .key_mode_i(host_aes_key_mode),
-	       .enc_decneg_i(host_aes_enc_decneg)
+	       .enable_op_i(host_aes_enable)
+	       //.key_mode_i(host_aes_key_mode),
+	       //.enc_decneg_i(host_aes_enc_decneg)
 	);
 
 
@@ -147,10 +145,8 @@ wire                host_aes_enc_decneg;
 				// iface to aes_core
 				.host_aes_key_o(host_aes_key),
                 .host_aes_blk_o(host_aes_block),
-                .host_aes_key_mode_o(host_aes_key_mode),
                 .host_aes_enable_key_schedule_o(host_aes_schedule),
                 .host_aes_enable_op_o(host_aes_enable),
-                .host_aes_enc_decneg_o(host_aes_enc_decneg),
 				.aes_host_result_i(aes_host_result),
 				.aes_host_result_valid_i(aes_host_result_valid),
 				.aes_host_ready_i(aes_host_ready),

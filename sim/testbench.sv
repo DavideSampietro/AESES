@@ -98,66 +98,21 @@ endtask
 //////////////////////////////
 /// AESES TESTERS			//
 //////////////////////////////
-wire [1:0] mode = `KEY_192; // test mode selection
-wire encryption = 1'b1;
- 
-wire [0:255] key_128_bit = 256'h000102030405060708090a0b0c0d0e0f00000000000000000000000000000000;
-wire [0:255] key_192_bit = 256'h000102030405060708090a0b0c0d0e0f10111213141516170000000000000000;
 wire [0:255] key_256_bit = 256'h000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f;
+//wire [0:255] key_256_bit = 256'h603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4;
 
 wire [0:127] test_ptx = 128'h00112233445566778899aabbccddeeff;
 
-wire [0:127] ctx_128 = 128'h69c4e0d86a7b0430d8cdb78070b4c55a;
-wire [0:127] ctx_192 = 128'hdda97ca4864cdfe06eaf70a0ec0d7191;
 wire [0:127] ctx_256 = 128'h8ea2b7ca516745bfeafc49904b496089;
 
-reg [0:255] input_key;
+wire [0:255] input_key = key_256_bit;
 wire [7:0] input_key_bytes[0:31];
 
-reg [0:127] start_value;
+wire [0:127] start_value = test_ptx;
 wire [7:0] start_value_bytes[0:15];
 
-reg [0:127] final_reference;
+wire [0:127] final_reference = ctx_256;
 reg [7:0] result[0:15];
-
-always@(*)
-begin
-    case(mode)
-        `KEY_128:
-            begin
-            input_key = key_128_bit;
-            start_value = ctx_128;
-            //final_value = ctx_128;
-            final_reference = ctx_128;
-            end
-        `KEY_192:
-            begin
-            input_key = key_192_bit;
-            start_value = ctx_192;
-            //final_value = ctx_192;
-            final_reference = ctx_192;
-            end
-        `KEY_256:
-            begin
-            input_key = key_256_bit;
-            start_value = ctx_256;
-            //final_value = ctx_256;
-            final_reference = ctx_256;
-            end
-        default:
-            begin
-            input_key = 256'h0;
-            start_value = {64{2'b10}};
-            //final_value = {64{2'b10}};
-            final_reference = {64{2'b10}};
-            end
-    endcase
-    
-    if(encryption)
-        start_value = test_ptx;
-    else
-        final_reference = test_ptx;
-end
 
 genvar k;
 generate
@@ -177,15 +132,6 @@ endgenerate
 //////////////////////////////
 always #HALF_CLK_PERIOD clk = ~clk;
 
-/*initial
-begin
-		$dumpvars(0,fpga_top_tb );
-		$dumpfile("out.vcd");
-		// cadence stuff
-		//$shm_open("waves");
-		//$shm_probe("ASM");
-end*/
-
 // The test sequence
 initial
 begin:initial_tb
@@ -202,8 +148,6 @@ begin:initial_tb
 	
 	repeat(2) @(posedge clk);
 	
-	// send key-schedule control byte
-	sendByteUart({1'b1, mode, 5'd0});
 	// send key...
 	cnt = 0;
 	repeat(32)
@@ -212,11 +156,9 @@ begin:initial_tb
 	   cnt=cnt+1;
     end
     
-    repeat(3)
+    // send ptx/ctx...
+    repeat(5)
     begin
-        // send operation control byte
-        sendByteUart({1'b0, mode, 1'b1, encryption, 3'd0});
-        // send ptx/ctx...
         cnt = 0;
         repeat(16)
         begin
@@ -238,7 +180,7 @@ begin:initial_tb
            $write("%h",result[i]);
         $write("\n%h\n", final_reference);
         $write("#################\n");
-    end
+	end
 	
 	#20 $finish;
 end
